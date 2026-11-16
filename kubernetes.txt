@@ -1,0 +1,41 @@
+##for docker to run 
+Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+
+if minikube not installed
+winget install Kubernetes.minikube
+
+
+##run this first 
+minikube start --driver=docker
+minikube status
+kubectl create deployment mynginx --image=nginx
+kubectl get deployments
+kubectl get pods
+kubectl describe pods
+kubectl expose deployment mynginx --type=NodePort --port=80 --target-port=80
+kubectl get services
+kubectl scale deployment mynginx --replicas=4
+kubectl get pods
+kubectl get service mynginx
+kubectl port-forward svc/mynginx 8081:80
+
+##go to localhost 8081 to see the ngix portal , then open new powershell
+
+minikube dashboard
+kubectl delete deployment mynginx
+kubectl delete service mynginx
+minikube stop
+minikube delete
+
+##for nagios 
+docker pull jasonrivers/nagios:latest
+docker run -d --name nagiosdemo -p 8888:80 jasonrivers/nagios:latest
+docker ps
+
+##after this open localhost 8888 nagios will come , username nagiosadmin , password nagios
+
+##to stop 
+docker stop nagiosdemo
+docker rm nagiosdemo
+docker images
+docker rmi jasonrivers/nagios:latest

@@ -1,0 +1,36 @@
+$u = "<shauryashekhar009>"
+
+docker pull redis
+docker run --name my-redis -d redis
+docker ps
+docker exec my-redis redis-cli SET name "shauryashekhar009"
+docker exec my-redis redis-cli GET name
+docker stop my-redis
+docker start my-redis
+docker stop my-redis
+docker rm my-redis
+docker rmi redis
+
+mkdir C:\DockerProjects\Redis -Force
+cd C:\DockerProjects\Redis
+"FROM redis:latest`r`nCMD [`"redis-server`"]" | Out-File -Encoding ascii Dockerfile
+docker build -t redisnew .
+docker run --name myredisnew -d redisnew
+docker ps
+docker stop myredisnew
+docker login
+docker ps -a
+docker commit myredisnew "$u/redis1"
+docker images
+docker push "$u/redis1"
+docker rm myredisnew
+docker rmi "$u/redis1"
+docker logout
+
+docker pull "$u/redis1"
+docker run --name myredis -d "$u/redis1"
+docker exec myredis redis-cli SET name "shauryashekhar009"
+docker exec myredis redis-cli GET name
+docker stop myredis
+docker rm myredis
+docker rmi "$u/redis1"

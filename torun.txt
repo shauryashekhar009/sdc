@@ -1,0 +1,3 @@
+cd $HOME\Downloads
+powershell -ExecutionPolicy Bypass -File .\first.ps1 shauryashekhar009
+powershell -ExecutionPolicy Bypass -File .\compose.ps1

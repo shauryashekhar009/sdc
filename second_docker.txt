@@ -1,0 +1,18 @@
+mkdir C:\compose-lab
+cd C:\compose-lab
+docker compose up -d
+docker compose ps
+docker compose up -d
+docker compose ps
+Compress-Archive -Path C:\compose-lab\* -DestinationPath C:\compose-lab.zip
+docker compose down
+docker compose up -d
+docker compose exec -T db psql -U demo -d demo_db -c "CREATE TABLE t(id int);"
+docker compose exec -T db psql -U demo -d demo_db -c "INSERT INTO t VALUES (1);"
+docker compose down
+docker compose up -d
+docker compose exec -T db psql -U demo -d demo_db -c "SELECT * FROM t;"
+docker compose down
+docker compose up --build -d
+docker compose up --build -d
+docker compose down

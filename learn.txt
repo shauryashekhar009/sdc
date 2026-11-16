@@ -1,0 +1,52 @@
+mkdir C:\myapp
+cd C:\myapp
+
+note: app.py should be in the same folder
+add the app.py here 
+
+write this in powershell : "flask" | Out-File -Encoding ascii requirements.txt
+
+write this in powershell:
+@"
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD ["python", "app.py"]
+"@ | Out-File -Encoding ascii Dockerfile
+
+powershell commands :
+docker build -t myapp .
+docker 
+docker run -d --name myapp-container -p 5000:5000 myapp
+docker ps
+
+
+##to stop 
+docker stop myapp-container
+docker rm myapp-container
+
+##to start
+docker build -t myapp .
+docker run -d --name myapp-container -p 5000:5000 myapp
+
+
+##if compose is asked write this in powershell
+@"
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+"@ | Out-File -Encoding ascii docker-compose.yml
+docker compose up --build -d
+docker compose ps
+
+docker compose down
+
+##clean up at the end 
+docker stop myapp-container
+docker rm myapp-container
+docker rmi myapp
