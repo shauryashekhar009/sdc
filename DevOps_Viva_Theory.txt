@@ -1,0 +1,1025 @@
+==========================================================================
+                 DEVOPS LAB - VIVA THEORY NOTES
+   Docker | Docker Compose | Kubernetes | Nagios | Jenkins | AWS EC2
+==========================================================================
+
+HOW TO USE: For each topic read (1) What it is, (2) Why it is needed,
+(3) Where it is used, (4) Key terms, (5) What each command means,
+(6) Viva questions with short answers.
+
+
+==========================================================================
+ PART 0 : THE BIG PICTURE - WHAT IS DEVOPS?
+==========================================================================
+
+WHAT
+DevOps = Development + Operations. It is a way of working (culture +
+tools) where the people who write code (Dev) and the people who run it
+on servers (Ops) work together, and most of the steps between "code
+written" and "code running for users" are AUTOMATED.
+
+WHY (the problem it solves)
+Earlier, developers wrote code, then handed it to operations to install
+manually. This was slow, error-prone and caused the classic problem:
+"It works on my machine but not on the server." Releases happened once
+in months. DevOps makes releases fast (many times a day), reliable and
+repeatable.
+
+THE DEVOPS FLOW (remember this order)
+  Code  -> Git/GitHub      (store and track code)
+  Build -> Maven           (compile, test, package Java)
+  CI/CD -> Jenkins         (automate build/test/deploy on every change)
+  Package -> Docker        (put app + everything it needs in a container)
+  Run many -> Compose/K8s  (run and manage many containers)
+  Host  -> AWS EC2         (servers in the cloud)
+  Monitor -> Nagios        (watch health and alert on failure)
+
+ONE-LINE VIVA ANSWER
+"The developer pushes code to GitHub, a webhook triggers Jenkins,
+Jenkins uses Maven to build and test, Docker packages the app into an
+image, it runs on AWS or Kubernetes, and Nagios monitors it."
+
+COMMON WORDS
+- Server     : a computer whose job is to serve something (website, DB).
+- localhost  : "this computer itself".
+- Port       : a numbered door on a computer (0-65535). Each service
+               listens on one: HTTP 80, HTTPS 443, SSH 22, Jenkins 8080.
+- Repository : a project folder tracked by Git (on GitHub).
+- Build      : turning source code into a runnable file.
+- Deploy     : putting the built app on a server so users can use it.
+- Artifact   : the output file of a build (.jar, .war, image).
+
+
+==========================================================================
+ PART 1 : DOCKER - SINGLE CONTAINER  (Week 5)
+==========================================================================
+
+WHAT IS DOCKER
+Docker is a containerization tool. It packages an application together
+with everything it needs (runtime, libraries, settings) into one
+portable unit called a CONTAINER.
+
+WHY IS IT NEEDED
+1. "Works on my machine" problem: different PCs have different versions
+   of Java/Python/libraries. A container carries its own, so it runs the
+   same everywhere.
+2. Lightweight: containers share the host OS kernel, so they start in
+   seconds and use MBs, unlike virtual machines (GBs, minutes).
+3. Isolation: each app runs separately; one app's libraries do not
+   clash with another's.
+4. Easy sharing: images can be pushed to Docker Hub and pulled anywhere.
+5. Fast, repeatable deployments for CI/CD.
+
+WHERE IS IT USED
+On developer laptops, test servers, cloud servers (AWS), inside
+Jenkins pipelines, and as the unit that Kubernetes manages. Almost all
+modern companies ship apps as containers.
+
+KEY TERMS
+- Image      : read-only template / blueprint of an app (like a recipe
+               or a class). Example: redis, nginx, postgres:15.
+- Container  : a running instance of an image (the dish made from the
+               recipe, or an object of a class). One image -> many
+               containers.
+- Dockerfile : a text file with step-by-step instructions to build an
+               image.
+- Docker Hub : online registry (store) of images, like GitHub for images.
+- Tag        : version label of an image (redis:latest, postgres:15).
+- Docker Engine / Daemon : the background service that actually builds
+               and runs containers. Docker Desktop provides it on Windows.
+- Port mapping (-p HOST:CONTAINER) : connects a port on your computer to
+               a port inside the container.
+
+DOCKER vs VIRTUAL MACHINE
+- VM has a full guest OS -> heavy (GBs), slow to boot, uses hypervisor.
+- Container shares host kernel -> light (MBs), starts in seconds.
+- VM = full house; container = apartment sharing the building's base.
+
+WHY REDIS IN THIS LAB
+Redis is a small, fast, in-memory key-value database (stores pairs like
+name -> Alice), used in real apps as a CACHE. Here it is just a handy
+example container: it starts quickly and we can prove it works by
+storing and reading a value.
+
+LAB FLOW (what we did and why)
+Part A - learn the basic container lifecycle on Redis:
+  pull image -> run container -> list it -> go inside and use it ->
+  stop/start -> remove container -> remove image.
+Part B - make and share your own image:
+  write Dockerfile -> build image -> run it -> log in to Docker Hub ->
+  commit container as an image with your username -> push to Docker Hub
+  -> delete locally -> pull it back and run it (proves sharing works).
+
+COMMANDS EXPLAINED
+- docker --version
+    Shows installed Docker version; confirms Docker is installed.
+- docker run hello-world
+    Test container; confirms the Docker engine is working.
+- docker pull redis
+    Downloads the redis image from Docker Hub to your machine.
+- docker images
+    Lists images stored on your machine.
+- docker run --name my-redis -d redis
+    Creates AND starts a container from the redis image.
+    --name gives it a name; -d = detached (runs in background).
+- docker run -p 8080:80 nginx
+    -p maps host port 8080 to container port 80 (left = your PC,
+    right = inside container).
+- docker ps
+    Lists RUNNING containers (ID, image, status, ports, name).
+- docker ps -a
+    Lists ALL containers including stopped ones.
+- docker exec -it my-redis redis-cli
+    Runs a command inside a running container. -i interactive,
+    -t terminal. redis-cli is Redis's own command prompt.
+    Inside: SET name "Alice" stores a value, GET name reads it, exit.
+- docker stop my-redis / docker start my-redis
+    Stops / starts an existing container (container is kept).
+- docker rm my-redis
+    Deletes a container (must be stopped first).
+- docker rmi redis
+    Deletes an image (no container may be using it).
+- docker build -t redisnew .
+    Builds an image from the Dockerfile in the current folder (.)
+    and names (tags) it redisnew.
+- docker login / docker logout
+    Sign in / out of Docker Hub (needed to push).
+- docker commit <container-id> <username>/redis1
+    Saves the current state of a container as a new image. The name must
+    start with your Docker Hub username to be pushed.
+- docker push <username>/redis1
+    Uploads the image to your Docker Hub account.
+- docker logs <name>
+    Shows what the app inside the container printed (for errors).
+- docker tag <image> name:tag
+    Gives an image another name/version.
+- docker save -o file.tar <image> / docker load -i file.tar
+    Export an image to a file / import it (sharing without internet).
+- docker stats
+    Live CPU / memory usage of containers.
+
+DOCKERFILE INSTRUCTIONS EXPLAINED
+- FROM     : base image to start from (FROM redis:latest).
+- WORKDIR  : sets (and creates) the working folder inside the image.
+- COPY     : copies files from your PC into the image.
+- RUN      : runs a command WHILE BUILDING the image (install packages).
+- CMD      : the default command to run WHEN THE CONTAINER STARTS.
+- EXPOSE   : documents which port the app listens on.
+- ENTRYPOINT : like CMD but harder to override; main executable.
+
+VIVA QUESTIONS
+Q: What is Docker?  A: A tool to package an app with its dependencies
+   into portable containers that run the same anywhere.
+Q: Image vs container?  A: Image = blueprint (read-only); container =
+   running instance of the image.
+Q: What is a Dockerfile?  A: Text file of instructions to build an image.
+Q: RUN vs CMD?  A: RUN executes at build time; CMD executes when the
+   container starts.
+Q: What does -d do?  A: Runs the container in the background.
+Q: What does -p 8080:80 mean?  A: Host port 8080 forwards to container
+   port 80.
+Q: Why can't I delete an image?  A: A container (even stopped) is still
+   using it; remove the container first.
+Q: What is Docker Hub?  A: Public registry to store and share images.
+Q: Why commit and push?  A: To save my container as an image and share
+   it so anyone can pull and run it.
+Q: Docker vs VM?  A: Containers share host kernel - lighter and faster;
+   VMs include a full OS.
+Q: How to see why a container stopped?  A: docker logs <name>.
+Q: How to auto-restart a container?  A: docker run --restart
+   unless-stopped ...
+
+
+==========================================================================
+ PART 2 : DOCKER COMPOSE - MULTI CONTAINER  (Week 6)
+==========================================================================
+
+WHAT IS DOCKER COMPOSE
+A tool to define and run MULTIPLE containers together using ONE file,
+docker-compose.yml, and start all of them with ONE command.
+
+WHY IS IT NEEDED
+Real applications have several parts: a web server, a database, a cache.
+Without Compose you would type a long docker run command for each one,
+remember ports, passwords and networks, and repeat it every time.
+Compose writes all of that once in a file, so:
+1. One command starts/stops the whole application.
+2. The setup is documented and version-controlled.
+3. The same folder runs identically on any machine (portability).
+4. Containers automatically get a shared network and can talk by name.
+5. Faster development: change code and rebuild in one command.
+
+WHERE IS IT USED
+Local development and testing of multi-part apps (WordPress + MySQL,
+React + Express + MongoDB, Nginx + Postgres + Redis), small deployments,
+and CI test environments.
+
+YAML
+The compose file is written in YAML, a human-readable config format.
+INDENTATION (spaces, never tabs) defines the structure. Wrong
+indentation is the most common error.
+
+COMPOSE FILE KEYS EXPLAINED
+- version      : compose file format version (newer Docker ignores it).
+- services     : list of containers to run; each entry is one service.
+- image        : image to use for the service (nginx:latest).
+- build: .     : instead of pulling, build an image from the Dockerfile
+                 in this folder.
+- ports        : port mapping "host:container" ("8080:80").
+- environment  : variables passed into the container (DB user/password).
+- depends_on   : start order - start the listed service first.
+- networks     : private network so services reach each other by
+                 service name (web can connect to "db").
+- volumes      : persistent storage outside the container so data
+                 survives when containers are deleted.
+
+SERVICES USED IN THE LAB
+- Nginx    : web server (shows "Welcome to nginx" page on port 8080).
+- Postgres : relational database (user demo, db demo_db).
+- Redis    : in-memory cache (redis:alpine = very small image).
+- Flask    : tiny Python web framework used for our own app (port 5000).
+
+LAB TASKS AND THEIR PURPOSE
+Task 1 - Define and run multiple services: web (nginx) + db (postgres)
+         from one file, prove the web page opens.
+Task 2 - Write/interpret YAML: add a redis service and depends_on so web
+         waits for redis; 3 services run.
+Task 3 - Deploy across machines: zip the folder, run it on another PC
+         unchanged -> shows portability.
+Task 4 - Networking and persistent storage: add a network and a volume,
+         insert data, delete containers (down), start again (up), data
+         is still there -> proves volumes persist data.
+Task 5 - Faster iteration: build our own Flask app from a Dockerfile,
+         change code, rebuild with one command, see change instantly.
+
+WHY host="0.0.0.0" IN FLASK
+By default Flask listens only on 127.0.0.1 (inside the container
+itself). 0.0.0.0 means "accept connections from outside", so the
+browser on the host can reach it through the mapped port.
+
+COMMANDS EXPLAINED
+- docker compose up -d
+    Reads docker-compose.yml, creates network/volumes, starts all
+    services in the background.
+- docker compose up
+    Same but shows logs in the terminal (Ctrl+C stops).
+- docker compose up --build
+    Rebuilds images (from Dockerfiles) before starting - used after
+    code changes.
+- docker compose up -d --build <service>
+    Rebuild and restart only one service.
+- docker compose ps
+    Lists the services/containers of this project and their status.
+- docker compose logs
+    Shows logs of all services.
+- docker compose down
+    Stops and removes containers and the default network (volumes stay).
+- docker compose restart
+    Restarts all services.
+- docker compose up --scale web=2 -d
+    Runs 2 copies of the web service.
+- docker compose exec db psql -U demo -d demo_db
+    Runs a command inside the db service; here opens the Postgres
+    prompt. SQL used: CREATE TABLE t(id int); INSERT INTO t VALUES (1);
+    SELECT * FROM t;  \q quits.
+- docker-compose (with hyphen) = older version of the same command.
+
+VIVA QUESTIONS
+Q: What is Docker Compose?  A: Tool to define and run multi-container
+   apps from a single YAML file with one command.
+Q: Docker vs Docker Compose?  A: Docker runs one container per command;
+   Compose runs many related containers together from a file.
+Q: What is depends_on?  A: Controls start order of services.
+Q: What is a volume and why?  A: Storage outside the container so data
+   survives container deletion.
+Q: What is a network in compose?  A: Lets services talk using service
+   names instead of IPs.
+Q: Should two apps run in one container?  A: No - one process per
+   container; use two containers in compose.
+Q: Two containers on host port 8080?  A: Second fails "port already
+   allocated"; map different host ports (8080 and 8081).
+Q: Restart everything quickly?  A: docker compose restart.
+Q: Update only the frontend?  A: docker compose up -d --build frontend.
+Q: "Connection refused" on Tomcat 8080?  A: Container not running,
+   wrong port mapping, or app still starting - check docker ps / logs.
+Q: Which container uses port 3000?  A: docker ps (PORTS column).
+Q: Share app with a teammate?  A: Push image to Docker Hub, or share the
+   compose folder, or docker save to a tar.
+Q: What does build: . do?  A: Builds the service image from the
+   Dockerfile in the current folder.
+
+
+==========================================================================
+ PART 3 : KUBERNETES WITH MINIKUBE
+==========================================================================
+
+WHAT IS KUBERNETES (K8s)
+An open-source container ORCHESTRATION tool. It automatically deploys,
+runs, scales, heals and manages containers across one or many machines.
+Simple view: Docker creates/runs containers; Kubernetes MANAGES them.
+
+WHY IS IT NEEDED
+If a Docker container crashes, Docker alone does not bring it back.
+Kubernetes:
+1. Self-healing   : a failed container/pod is recreated automatically.
+2. Scaling        : change from 1 to 4 copies with one command.
+3. Load balancing : spreads traffic across all copies via a Service.
+4. Rolling updates and rollback : update with no downtime, undo if bad.
+5. Desired state  : you declare "I want 4 nginx pods"; K8s keeps it so.
+
+WHERE IS IT USED
+Production systems running many containers across many servers
+(Swiggy, Netflix, banks). Cloud versions: AWS EKS, Google GKE,
+Azure AKS. Minikube is used for learning on a laptop.
+
+KEY TERMS
+- Cluster    : group of machines (nodes) managed by Kubernetes.
+- Node       : one machine in the cluster. Master/control plane = brain;
+               worker nodes = where apps run.
+- Pod        : SMALLEST deployable unit in Kubernetes; wraps one (or
+               more) containers. Containers always run inside pods.
+- Deployment : object that says "keep N pods of this image running";
+               creates and re-creates pods.
+- ReplicaSet : maintained by the deployment; ensures the pod count.
+- Replica    : one copy of a pod.
+- Service    : stable address/port in front of pods (pods' IPs change).
+   Types: ClusterIP (inside cluster only), NodePort (opens a port
+   30000-32767 on the node), LoadBalancer (cloud load balancer).
+- kubectl    : command-line tool to talk to the Kubernetes cluster.
+- Minikube   : runs a single-node Kubernetes cluster on your own laptop
+               for practice (uses Docker as the "driver").
+- Dashboard  : web UI to see deployments, pods, services, replicas.
+
+LAB FLOW (input -> output)
+Input: the nginx image and kubectl commands.
+1. Start Minikube cluster -> status Running.
+2. Create deployment mynginx with nginx image -> 1 pod Running.
+3. Expose it as a NodePort service on port 80 -> reachable.
+4. Scale to 4 replicas -> 4 pods Running.
+5. Port-forward and open localhost:8081 -> "Welcome to nginx!".
+6. Open dashboard -> visual view.
+7. Clean up.
+Output: Nginx running in 4 pods managed by Kubernetes.
+
+COMMANDS EXPLAINED
+- minikube start --driver=docker
+    Creates and starts the local one-node cluster using Docker.
+- minikube status
+    Shows whether host, kubelet and apiserver are Running.
+- kubectl create deployment mynginx --image=nginx
+    Creates a deployment named mynginx running the nginx image (1 pod).
+- kubectl set image deployment/mynginx nginx=nginx:latest
+    Updates the image of an existing deployment.
+- kubectl get deployments
+    Lists deployments and READY count (e.g. 1/1).
+- kubectl get pods
+    Lists pods and their status (Running, Pending, CrashLoopBackOff).
+- kubectl describe pods
+    Full details of pods including the Events section (for errors).
+- kubectl expose deployment mynginx --type=NodePort --port=80
+  --target-port=80
+    Creates a Service so the pods can be reached. --port = service port,
+    --target-port = container port.
+- kubectl get services / kubectl get service mynginx
+    Lists services with their type and ports.
+- kubectl scale deployment mynginx --replicas=4
+    Changes the number of pods to 4.
+- kubectl port-forward svc/mynginx 8081:80
+    Forwards localhost:8081 to the service's port 80 (keep window open).
+- minikube service mynginx --url / minikube tunnel
+    Alternative ways to get a browser URL for the service.
+- minikube dashboard
+    Opens the Kubernetes web dashboard.
+- kubectl delete deployment mynginx / kubectl delete service mynginx
+    Removes the deployment / service.
+- minikube stop / minikube delete
+    Stops the cluster / deletes it completely.
+- kubectl logs <pod> [--previous]
+    App output of a pod (--previous = before last crash).
+- kubectl exec -it <pod> -- sh
+    Opens a shell inside a pod for debugging.
+- kubectl rollout status / history / undo deployment/<name>
+    Check rollout progress / see versions / roll back to previous one.
+
+VIVA QUESTIONS
+Q: What is Kubernetes?  A: Container orchestration tool that deploys,
+   scales, heals and manages containers automatically.
+Q: Docker vs Kubernetes?  A: Docker runs containers; Kubernetes manages
+   many containers (healing, scaling, load balancing).
+Q: What is a pod?  A: Smallest deployable unit; wraps one or more
+   containers.
+Q: What is a deployment?  A: Keeps the desired number of pods running
+   and handles updates.
+Q: What is a service? Why needed?  A: Gives pods a stable address and
+   load-balances; pod IPs change when pods are recreated.
+Q: NodePort?  A: Service type that opens a port (30000-32767) on each
+   node to reach the app from outside.
+Q: What is Minikube?  A: Single-node local Kubernetes for learning.
+Q: What is kubectl?  A: CLI to control the cluster.
+Q: Why scale to 4 replicas?  A: High availability - if one pod fails,
+   others keep serving; also handles more load.
+Q: Pod keeps restarting?  A: kubectl describe pod (Events) and
+   kubectl logs --previous; causes: app error, OOM, failing probe.
+Q: Pod Pending?  A: Not enough CPU/memory, no suitable node, storage not
+   bound - check Events.
+Q: Debug failed deployment?  A: rollout status, describe, logs; often
+   wrong image name (ImagePullBackOff).
+Q: Some replicas fail health checks?  A: Describe/logs those pods,
+   compare probe port/path with the app.
+Q: Roll back?  A: kubectl rollout undo deployment/<name>.
+Q: Expose externally?  A: NodePort/LoadBalancer service, port-forward,
+   Ingress, or minikube service --url.
+
+
+==========================================================================
+ PART 4 : NAGIOS - MONITORING
+==========================================================================
+
+WHAT IS NAGIOS
+An open-source IT infrastructure MONITORING and ALERTING tool. It keeps
+checking servers, network devices, applications and services, and
+alerts administrators when something fails and again when it recovers.
+
+WHY IS IT NEEDED
+Nobody can manually watch hundreds of servers all day. If a server or
+website goes down at night, Nagios detects it within minutes and sends
+an alert (email/SMS), so it is fixed before customers notice. It also
+warns early (e.g. disk 80% full) to prevent failures.
+
+WHERE IS IT USED
+Data centres, IT companies, colleges, any organisation running servers -
+to monitor uptime, CPU, memory, disk, network, HTTP, SSH, databases.
+
+KEY TERMS
+- Host    : a machine/device being monitored (server, router).
+            Host states: UP, DOWN, UNREACHABLE.
+- Service : a specific check on a host (CPU load, disk, HTTP, SSH,
+            users, swap). Service states:
+            OK (green), WARNING (yellow), CRITICAL (red), UNKNOWN.
+- Plugin  : small program that performs a check and returns a status.
+- Alert / Notification : message sent when state changes.
+- Scheduled downtime   : planned maintenance period so no false alerts.
+- nagios.cfg           : main configuration file.
+
+KUBERNETES vs NAGIOS (common viva question)
+Kubernetes MANAGES applications (runs, heals, scales them).
+Nagios MONITORS systems and ALERTS humans when something is wrong.
+Different purposes; they are used together.
+
+LAB FLOW (input -> output)
+Input: the ready-made Nagios Docker image (jasonrivers/nagios).
+1. Pull the image.  2. Run it, mapping port 8888 to 80.
+3. Open localhost:8888, log in nagiosadmin / nagios.
+4. Explore Hosts (localhost UP), Services (OK/WARNING/CRITICAL),
+   Alerts, host details (status, metrics, actions).
+5. Stop and remove.
+Output: web dashboard showing health of the system with alerts.
+Docker is used so we avoid the long manual installation.
+
+COMMANDS EXPLAINED
+- docker pull jasonrivers/nagios:latest
+    Downloads an image with Nagios already installed.
+- docker run --name nagiosdemo -p 8888:80 jasonrivers/nagios:latest
+    Runs Nagios; its web page (port 80 inside) opens on host port 8888.
+- docker stop / rm / rmi
+    Stop container / delete container / delete image.
+On a normal Linux install (for written answers):
+- sudo systemctl start|stop|restart nagios   : control the service.
+- sudo systemctl status nagios               : check it is running.
+- nagios -v /usr/local/nagios/etc/nagios.cfg : verify config for errors.
+- tail -f /usr/local/nagios/var/nagios.log   : watch logs live.
+
+VIVA QUESTIONS
+Q: What is Nagios?  A: Open-source monitoring tool that checks hosts and
+   services and alerts on failure and recovery.
+Q: Why monitoring?  A: Detect failures early, reduce downtime, alert
+   admins automatically.
+Q: Host vs service?  A: Host = machine; service = a check on it.
+Q: Service states?  A: OK, WARNING, CRITICAL, UNKNOWN.
+Q: Default login of the lab image?  A: nagiosadmin / nagios.
+Q: "Unable to connect to Nagios process"?  A: Service not running or
+   config error - verify config (nagios -v), restart.
+Q: New host not visible?  A: Config file not included in nagios.cfg,
+   syntax error, or Nagios not restarted.
+Q: Check Nagios is running?  A: systemctl status nagios / Process Info
+   in web UI.
+Q: View logs live?  A: tail -f nagios.log.
+Q: Advantages?  A: Free/open source, many plugins, alerts, web
+   dashboard, monitors servers/network/apps, scalable.
+
+AWS FREE TIER ACCOUNT (part of this lab)
+Steps: aws.amazon.com -> Create account -> email + verification code ->
+contact details -> card details (small refundable charge to verify) ->
+phone OTP -> choose Basic (free) support plan -> sign in to the AWS
+Management Console as Root user.
+
+
+==========================================================================
+ PART 5 : JENKINS AND MAVEN BASICS  (needed for Weeks 8, 9, 11)
+==========================================================================
+
+WHAT IS CI / CD
+- CI (Continuous Integration): developers merge code frequently and
+  every change is AUTOMATICALLY built and tested, so bugs are found
+  early.
+- CD (Continuous Delivery): every passing build is automatically made
+  READY to release (a human approves the release).
+- CD (Continuous Deployment): every passing build is automatically
+  RELEASED to production.
+
+WHAT IS JENKINS
+Jenkins is a free, open-source AUTOMATION SERVER (written in Java) used
+to implement CI/CD. It runs as a web application, default at
+http://localhost:8080. You create JOBS; each run is a BUILD (#1, #2...).
+
+WHY IS JENKINS NEEDED
+Without it, someone must manually pull code, build, test and deploy
+after every change - slow and error-prone. Jenkins does it
+automatically on every push or on a schedule, gives immediate feedback
+(green/red), keeps logs and artifacts, and integrates with Git, Maven,
+Docker, Tomcat, email and thousands of plugins.
+
+WHERE IS IT USED
+In almost every software team's delivery pipeline as the "automation
+manager" between GitHub and the servers.
+
+JENKINS TERMS
+- Job / Item / Project : one configured task (e.g. build my app).
+- Build                : one run of a job, numbered.
+- Console Output       : log of a build (where you read errors).
+- Workspace            : folder where Jenkins checks out code and builds.
+- Artifact             : files produced by a build (.jar/.war) that are
+                         archived for download or for the next job.
+- Plugin               : add-on that extends Jenkins (Git, Maven,
+                         Pipeline, Email Extension, Deploy to container).
+- Global Tool Configuration (Tools) : where Maven/JDK/Git locations are
+                         configured (e.g. Maven named MAVEN-HOME).
+- Credentials          : safely stored passwords/tokens, used by ID.
+- Agent / Node         : machine that runs builds (distributed builds).
+- Executor             : a slot that runs one build at a time.
+- Blue Ocean           : modern visual UI for pipelines.
+- Status icons         : green tick = success, red X = failure,
+                         weather icon = health of recent builds.
+
+WHAT IS MAVEN
+A BUILD TOOL for Java. It reads pom.xml, downloads the libraries
+(dependencies) the project needs, compiles, tests and packages it.
+- pom.xml : Project Object Model - project info, dependencies, plugins,
+            packaging type (jar or war).
+- .jar    : Java ARchive - normal Java application/library.
+- .war    : Web ARchive - web application deployed on Tomcat.
+- ~/.m2   : local Maven repository where libraries are cached.
+
+MAVEN LIFECYCLE (order)
+validate -> compile -> test -> package -> verify -> install -> deploy
+Running a later phase runs all earlier ones too.
+- mvn clean   : deletes the target folder (old build output).
+- mvn compile : compiles .java to .class.
+- mvn test    : runs unit tests (JUnit).
+- mvn package : creates .jar/.war in target/.
+- mvn install : package + copy into local repository (~/.m2).
+- -f <folder> : tells Maven which folder's pom.xml to use.
+- -DskipTests : skip running tests.
+
+TOMCAT
+Apache Tomcat is a Java web server / servlet container that runs .war
+web applications. Any .war placed in its webapps folder is deployed
+automatically; the war's name (context path) becomes its URL path.
+Tomcat Manager is its web UI; users with manager-script role can deploy
+remotely (that is how Jenkins deploys).
+
+
+==========================================================================
+ PART 6 : JENKINS FREESTYLE PIPELINE  (Week 8)
+==========================================================================
+
+WHAT
+A Freestyle job is configured by filling forms in the Jenkins UI (no
+code). In this lab we create SEPARATE jobs (Build, Test, Deploy) and
+CHAIN them so one triggers the next, and show the chain in a
+Build Pipeline View.
+
+WHY
+- Easy to understand visually, no scripting needed.
+- Splitting stages into jobs shows exactly which stage failed.
+- Artifacts are passed from one job to the next.
+
+LAB FLOW
+MavenJava (Java app -> .jar):
+1. MavenJava_Build: take code from Git, Maven goals clean + install,
+   archive artifacts (**/*), trigger MavenJava_Test if stable.
+2. MavenJava_Test: delete workspace first, copy artifacts from the Build
+   job, run Maven goal test, archive artifacts.
+3. Build Pipeline View: shows Build -> Test as connected boxes.
+MavenWeb (web app -> .war):
+4. MavenWeb_Build -> MavenWeb_Test -> MavenWeb_Deploy.
+5. Deploy job copies the .war and uses "Deploy war/ear to a container"
+   to push it to Tomcat with context path webpath.
+6. Open Tomcat Manager -> /webpath shows the app.
+
+SETTINGS EXPLAINED
+- Source Code Management -> Git : repository URL and branch (*/master or
+  */main) that Jenkins clones.
+- Invoke top-level Maven targets : runs Maven goals (clean, install,
+  test) using the configured Maven.
+- Archive the artifacts (**/*) : saves build output so it can be
+  downloaded or copied by another job. **/* = all files.
+- Build other projects : triggers the next job after this one; "only if
+  stable" = only when this build passed.
+- Delete workspace before build starts : clean start, no old files.
+- Copy artifacts from another project : brings files built by the
+  previous job (needs Copy Artifact plugin).
+- Build Pipeline View : visual chain of jobs (Build Pipeline plugin).
+- Deploy war/ear to a container : sends the .war to Tomcat using a
+  manager user (Deploy to container plugin). Context path = URL path.
+- Plugins needed : Git, Maven Integration, Copy Artifact, Build
+  Pipeline, Deploy to container.
+
+FREESTYLE vs PIPELINE
+- Freestyle : UI forms, separate jobs chained, quick for simple tasks,
+              not stored as code.
+- Pipeline  : all stages written as code (Jenkinsfile) in one job,
+              version-controlled, supports complex logic, Stage View.
+
+VIVA QUESTIONS
+Q: What is Jenkins?  A: Open-source automation server for CI/CD.
+Q: Default port?  A: 8080.
+Q: What is a Freestyle job?  A: A job configured through the UI forms.
+Q: Why separate Build and Test jobs?  A: Clear stages, easy to find
+   which failed, artifacts passed between them.
+Q: What is an artifact?  A: Output file of a build (.jar/.war).
+Q: Why Copy Artifact plugin?  A: To use files built by another job.
+Q: What is Build Pipeline View?  A: Visual chain of connected jobs.
+Q: How does Jenkins deploy to Tomcat?  A: Deploy to container plugin
+   uploads the .war using a Tomcat manager-script user.
+Q: What are plugins?  A: Add-ons that extend Jenkins features; installed
+   from Manage Jenkins -> Plugins.
+Q: How are secrets stored?  A: Credentials plugin / Jenkins Credentials.
+Q: What is Blue Ocean?  A: Modern visual pipeline UI.
+Q: What are agents/nodes?  A: Extra machines for distributed builds.
+Q: Source control tools Jenkins supports?  A: Git, GitHub, SVN, etc.
+
+
+==========================================================================
+ PART 7 : JENKINS SCRIPTED PIPELINE + BUILD TRIGGERS  (Week 9)
+==========================================================================
+
+WHAT
+A Pipeline job defines the whole process (checkout, build, test,
+package) as CODE in one script (Pipeline as Code). The script can be
+typed in Jenkins or stored in the repo as a Jenkinsfile.
+
+WHY
+- Whole CI/CD flow in one place, readable and repeatable.
+- Can be version-controlled with the code (Jenkinsfile).
+- Supports conditions, loops, parallel stages, credentials.
+- Stage View shows each stage's status and time.
+
+SCRIPT STRUCTURE EXPLAINED
+- pipeline { }       : start of a declarative pipeline.
+- agent any          : run on any available Jenkins machine/executor.
+- tools { maven 'MAVEN-HOME' } : use the Maven installation configured
+                       in Tools with that exact name; puts mvn on PATH.
+- stages { }         : list of stages run top to bottom.
+- stage('name') { }  : one named step group shown in Stage View.
+- steps { }          : the actual commands inside a stage.
+- bat "..."          : run a Windows command (Jenkins on Windows).
+- sh "..."           : run a Linux/Mac shell command (Jenkins on Linux).
+- echo '...'         : print a message in the console.
+- ${env.BUILD_NUMBER}: built-in variable with the current build number.
+- post { success{} failure{} } : actions after the pipeline ends.
+
+STAGES IN THE LAB SCRIPT
+1. git repo & clean : (delete old folder) clone code from GitHub,
+                      mvn clean to remove old build output.
+2. install          : mvn install - compile, test, package, store.
+3. test             : mvn test - run unit tests.
+4. package          : mvn package - create .jar/.war.
+If any stage fails, the pipeline stops and later stages are skipped.
+
+BUILD TRIGGERS (when should Jenkins start a build?)
+- Build Now (manual)        : you click.
+- Build periodically        : on a schedule (cron), even if no change.
+- Poll SCM                  : Jenkins checks Git on a schedule and builds
+                              only if code changed.
+- GitHub hook trigger for GITScm polling : GitHub notifies Jenkins
+                              instantly on push (webhook).
+- Build after other projects are built : chain jobs.
+- Trigger builds remotely   : start with a URL + token.
+
+CRON FORMAT (5 fields)
+MINUTE  HOUR  DAY-OF-MONTH  MONTH  DAY-OF-WEEK
+*  = every;  H = Jenkins picks a spread-out value
+0 18 * * *   = every day at 6 PM
+H/5 * * * *  = every 5 minutes
+0 9 * * 1-5  = 9 AM Monday to Friday
+
+VIVA / SCENARIO ANSWERS
+- Which stage cleans the workspace?  'git repo & clean' (mvn clean).
+- Where is the GitHub link given?  In the git clone command.
+- Maven not configured globally - what fails first?  The tools block.
+- No .war created - which stage?  package (pom packaging must be war).
+- Tests fail - what happens?  test stage fails, build FAILED, later
+  stages skipped.
+- Build only on GitHub changes?  GitHub hook trigger (or Poll SCM).
+- mvn clean replaced by mvn compile?  Old files not deleted; code just
+  compiled.
+- Folder is studentapp not mavenjava?  Change clone URL and every -f.
+- Install fails - do test/package run?  No, pipeline stops.
+- Where to add Tomcat deployment?  New deploy stage after package.
+- Why tools { maven ... }?  Tells Jenkins which Maven to use.
+- Private GitHub credentials?  Store in Jenkins Credentials; use
+  credentialsId / withCredentials, never plain text.
+- Plugin for pipeline { } syntax?  Pipeline plugin.
+- Jenkins on Linux?  Replace bat with sh.
+- Stop if clone fails?  Default: a failing command fails the stage and
+  stops the pipeline.
+- Welcome message?  echo 'Welcome ...'.
+- Latest code not pulled?  git pull / delete and re-clone.
+- Compile Hello.java on every commit?  stage with javac Hello.java +
+  webhook trigger.
+- Tests must stop pipeline?  Put test stage before package.
+- Daily 6 PM?  Build periodically 0 18 * * *.
+- Package only if compile succeeds?  Order stages compile -> package.
+- .jar for submission?  mvn package stage (packaging jar).
+- Print build number?  echo "Build: ${env.BUILD_NUMBER}".
+
+OTHER VIVA QUESTIONS
+Q: What is Pipeline as Code?  A: Defining CI/CD steps as code
+   (Jenkinsfile) stored with the project.
+Q: What is a Jenkinsfile?  A: Text file containing the pipeline script,
+   kept in the repository.
+Q: Declarative vs scripted?  A: Declarative uses the pipeline { } fixed
+   structure (simpler); scripted uses node { } with full Groovy code
+   (more flexible).
+Q: What is Stage View?  A: Visual table of stages, their status and time.
+
+
+==========================================================================
+ PART 8 : JENKINS CI WITH GITHUB WEBHOOKS + EMAIL  (Week 11)
+==========================================================================
+
+WHAT IS A WEBHOOK
+An automatic HTTP message (POST request) that GitHub SENDS to a URL the
+moment an event happens (e.g. a push). It is GitHub "ringing Jenkins'
+doorbell" saying "new code arrived".
+
+WHY WEBHOOKS
+To achieve real Continuous Integration: every push automatically and
+immediately starts a build - no manual clicking and no constant polling.
+
+POLLING vs WEBHOOK
+- Polling : Jenkins keeps ASKING GitHub "any change?" every few minutes
+            (pull-based, delayed, wasteful).
+- Webhook : GitHub TELLS Jenkins instantly (push-based, real-time,
+            efficient).
+
+WHAT IS NGROK AND WHY
+Jenkins on a laptop runs at localhost:8080, which GitHub on the
+internet cannot reach. ngrok creates a secure public HTTPS URL (a
+tunnel) that forwards to localhost, so GitHub's webhook can reach local
+Jenkins. (If Jenkins runs on a cloud server with a public IP, e.g. AWS
+EC2, ngrok is not needed.)
+
+WEBHOOK SETUP EXPLAINED
+1. ngrok config add-authtoken <token> : links ngrok to your account.
+2. ngrok http 8080 : creates the public URL forwarding to port 8080.
+3. GitHub repo -> Settings -> Webhooks -> Add webhook:
+   - Payload URL  : <ngrok-url>/github-webhook/  (this exact path is
+                    where Jenkins' GitHub plugin listens)
+   - Content type : application/json (format of the message)
+   - Events       : Just the push event
+4. Jenkins job -> Build Triggers -> GitHub hook trigger for GITScm
+   polling : allows the job to be started by the webhook.
+5. Push any change -> GitHub sends event -> ngrok forwards -> Jenkins
+   builds automatically. Green tick on webhook delivery = success.
+
+EMAIL NOTIFICATION - WHAT AND WHY
+Jenkins emails the team when a build fails or succeeds, so developers
+get immediate feedback without watching the dashboard and can fix
+failures quickly.
+
+EMAIL SETUP EXPLAINED
+- SMTP : Simple Mail Transfer Protocol - used to SEND email.
+  Gmail's SMTP server is smtp.gmail.com.
+- Port 465 with SSL : encrypted connection to the mail server.
+- App Password : a 16-character password Google generates for an app
+  (Jenkins). Needs 2-Step Verification ON. Used instead of the real
+  Gmail password, more secure and can be revoked.
+- Email Extension Plugin : advanced, configurable emails (triggers,
+  recipients, content).
+- E-mail Notification section : basic SMTP settings + test mail.
+- Extended E-mail Notification section : settings for the plugin.
+- Editable Email Notification (post-build action) : per-job recipients
+  and triggers (Failure - Any, Success).
+
+VIVA QUESTIONS
+Q: What is CI?  A: Frequently integrating code with automatic build and
+   test on every change.
+Q: What is CD?  A: Continuous Delivery = always ready to release;
+   Continuous Deployment = automatically released.
+Q: Role of Jenkins in CI/CD?  A: Automation server that pulls code,
+   builds, tests, deploys and reports.
+Q: What is a GitHub webhook?  A: HTTP POST GitHub sends to a URL when an
+   event like a push happens.
+Q: Why webhooks in Jenkins?  A: Instant automatic builds on every push.
+Q: Types of build triggers?  A: Manual, build periodically, Poll SCM,
+   GitHub hook trigger, after other projects, remote trigger.
+Q: Polling vs webhook?  A: Polling = Jenkins asks repeatedly; webhook =
+   GitHub notifies instantly.
+Q: What is ngrok?  A: Tunnelling tool that gives a public URL to a local
+   server.
+Q: How does ngrok help?  A: GitHub cannot reach localhost; ngrok's
+   public URL forwards the webhook to local Jenkins.
+Q: Why email notifications?  A: Immediate feedback on success/failure
+   so problems are fixed quickly.
+Q: Why app password?  A: Gmail blocks normal passwords for apps; app
+   password is secure and revocable.
+Q: Why /github-webhook/ in the URL?  A: It is the endpoint where Jenkins'
+   GitHub plugin receives webhook events.
+
+
+==========================================================================
+ PART 9 : AWS EC2 CLOUD DEPLOYMENT
+==========================================================================
+
+WHAT IS CLOUD COMPUTING / AWS
+Cloud computing = renting computing resources (servers, storage,
+networks) over the internet and paying only for what you use, instead
+of buying hardware. AWS (Amazon Web Services) is the largest cloud
+provider.
+
+WHAT IS EC2
+EC2 (Elastic Compute Cloud) is the AWS service to create virtual
+machines called INSTANCES in Amazon's data centres.
+
+WHY IS IT NEEDED
+- No upfront hardware cost; ready in minutes.
+- Accessible from anywhere through a public IP.
+- Scale up/down any time; pay per use.
+- This is how real websites and backends are hosted.
+
+WHERE IS IT USED
+Hosting websites, APIs, databases, Jenkins servers, Docker hosts,
+Kubernetes clusters - most companies run on AWS/Azure/GCP.
+
+KEY TERMS
+- Instance       : a virtual machine in AWS.
+- AMI            : Amazon Machine Image - OS template (Ubuntu Server).
+- Instance type  : machine size. t2.micro / t3.micro = 1-2 vCPU, 1 GB
+                   RAM (free tier).
+- Region / AZ    : geographic location / data centre where it runs.
+- Key pair (.pem): private key file used to log in securely via SSH;
+                   downloaded only once.
+- Security Group : virtual FIREWALL of the instance; INBOUND RULES
+                   decide which ports are open (22 SSH, 80 HTTP,
+                   443 HTTPS, 6060 our app). Source 0.0.0.0/0 = anyone.
+- Public IP      : internet address used in the browser. Changes when
+                   the instance is stopped and started.
+- Private IP     : address inside AWS (172.31.x.x), not reachable from
+                   the internet.
+- Elastic IP     : fixed public IP that does not change.
+- EBS / Storage  : the instance's disk (8 GB root volume).
+- SSH            : secure remote login to the instance's terminal.
+- EC2 Instance Connect : browser-based terminal to the instance.
+- User data      : script that runs automatically when an instance
+                   starts (automate setup).
+
+DEPLOYMENT STEPS AND WHY
+1. Put the Maven web app on GitHub - so the server can download it.
+2. Launch EC2 (Ubuntu, t2.micro, key pair, security group with
+   HTTP/HTTPS/SSH, 8 GB) - the cloud computer.
+3. Connect via SSH / Instance Connect - to get a terminal on it.
+4. Install Docker and Git (+ nano editor) - tools to fetch and run app.
+5. Clone the repository - get the code onto the server.
+6. Write a Dockerfile - recipe to build and run the app.
+7. Build the image - package the app.
+8. Run the container with port mapping 6060:8080 - start the app.
+9. Open http://<public-ip>:6060 - if not loading, add an inbound rule
+   for port 6060 in the instance's security group.
+
+THE DOCKERFILE USED (multi-stage build) EXPLAINED
+Stage 1 (build): FROM a Maven + Java image, copy the code, run
+  mvn package -> produces the .war. Maven need not be installed on EC2.
+Stage 2 (run): FROM tomcat:9.0, copy only the .war into Tomcat's webapps
+  folder as ROOT.war (so it opens at "/"), EXPOSE 8080.
+Multi-stage keeps the final image small - it contains Tomcat + war,
+not Maven and source code.
+
+COMMANDS EXPLAINED
+- ssh -i "key.pem" ubuntu@<public-ip>
+    Logs in to the instance using the private key; ubuntu is the default
+    user of Ubuntu AMIs.
+- sudo
+    Run a command as administrator.
+- sudo apt update
+    Refreshes the list of available software packages.
+- sudo apt install -y docker.io git nano
+    Installs Docker, Git and the nano text editor (-y = auto yes).
+- sudo systemctl enable --now docker
+    Starts Docker now and on every boot.
+- git clone <repo-url> ; cd <folder>
+    Downloads the project and enters its folder.
+- nano Dockerfile
+    Opens an editor to create the Dockerfile (Ctrl+O save, Enter,
+    Ctrl+X exit).
+- sudo docker build -t myapp .
+    Builds the image named myapp from the Dockerfile here.
+- sudo docker images
+    Confirms the image exists.
+- sudo docker run -d --name app-demo -p 6060:8080 myapp
+    Runs the container in the background; EC2 port 6060 -> Tomcat 8080.
+- sudo docker ps
+    Confirms it is Up with 0.0.0.0:6060->8080.
+- curl localhost:6060
+    Tests the app from inside the server (prints the HTML).
+
+IMPORTANT TROUBLESHOOTING LOGIC
+- "Refused to connect"  : request reached the server but nothing listens
+                          on that port -> container not running / wrong
+                          port / forgot :6060 in URL.
+- Page keeps loading then times out : security group does not allow the
+  port -> add inbound rule.
+- curl works but browser does not : security group / wrong public IP.
+- Tomcat 404 : app running but wrong path/context.
+
+VIVA / SCENARIO ANSWERS
+1. Host index.html but page doesn't load?  Install a web server (Apache/
+   httpd or Nginx), copy index.html to /var/www/html, start the service,
+   allow port 80 in the security group.
+2. index.html in /var/www/html still not loading?  Web server not
+   running; port 80 not open in security group (also file name /
+   permissions).
+3. Apache stops after reboot?  sudo systemctl enable httpd (apache2 on
+   Ubuntu) to auto-start at boot.
+4. Install Maven on EC2?  sudo apt install maven (Ubuntu) / sudo yum
+   install maven (Amazon Linux); check with mvn -v (Java needed).
+5. Where to put the .war for Tomcat?  In Tomcat's webapps folder - Tomcat
+   auto-deploys it.
+6. 404 on deployed app?  Wrong context path/URL (path = war name), war
+   not deployed, app failed - check Tomcat logs (catalina.out).
+7. curl localhost:8080 works but browser does not?  Security group
+   inbound rule for that port is missing.
+8. Public IP changed and app stopped opening?  Public IP changes on
+   stop/start - use an Elastic IP (fixed IP).
+9. Run commands automatically at instance setup?  User data script.
+10. EC2 has no internet for Maven dependencies?  Route through an
+    Internet Gateway (public subnet) or NAT Gateway (private subnet), or
+    use VPC endpoints / private repository.
+
+OTHER VIVA QUESTIONS
+Q: What is EC2?  A: AWS service for virtual servers (instances).
+Q: What is an AMI?  A: The OS image template used to launch an instance.
+Q: What is a security group?  A: Virtual firewall controlling inbound and
+   outbound traffic by port and source.
+Q: What is a key pair?  A: Public/private keys for secure SSH login; AWS
+   keeps the public key, you keep the .pem.
+Q: Why port 6060:8080?  A: Tomcat listens on 8080 inside the container;
+   we expose it on EC2 port 6060.
+Q: Why Docker on EC2?  A: Same image runs anywhere; no need to install
+   Java/Maven/Tomcat manually on the server.
+Q: Public vs private IP?  A: Public reachable from internet; private only
+   inside AWS network.
+Q: Why stop the instance after use?  A: To avoid charges / save credits.
+
+
+==========================================================================
+ PART 10 : QUICK REVISION - ONE LINE EACH
+==========================================================================
+Git        : version control - stores and tracks code.
+GitHub     : online hosting for Git repositories.
+Maven      : Java build tool - compile, test, package using pom.xml.
+Jenkins    : automation server for CI/CD.
+Freestyle  : Jenkins job configured with UI forms.
+Pipeline   : Jenkins job defined as code (Jenkinsfile).
+Webhook    : GitHub instantly notifies Jenkins of a push.
+ngrok      : public URL for a local server.
+Docker     : packages app + dependencies into containers.
+Image      : blueprint; Container: running instance.
+Dockerfile : instructions to build an image.
+Docker Hub : registry to share images.
+Compose    : run multi-container apps from one YAML file.
+Volume     : persistent storage outside containers.
+Kubernetes : orchestrates containers - heal, scale, load-balance.
+Pod        : smallest unit in Kubernetes.
+Deployment : keeps desired number of pods running.
+Service    : stable access point to pods.
+Minikube   : local single-node Kubernetes.
+Nagios     : monitoring and alerting tool.
+AWS EC2    : virtual servers in the cloud.
+Security Group : firewall rules (open ports) for an instance.
+Tomcat     : server that runs Java .war web apps.
+Nginx      : web server / reverse proxy / load balancer.
+Redis      : in-memory key-value database / cache.
+Postgres   : relational database.
+Flask      : lightweight Python web framework.
+
+PORTS TO REMEMBER
+22 SSH | 80 HTTP | 443 HTTPS | 8080 Jenkins/Tomcat | 5000 Flask |
+5432 Postgres | 3306 MySQL | 6379 Redis | 8888 Nagios (lab) |
+8081 port-forward Nginx (lab) | 6060 app on EC2 (lab) |
+30000-32767 Kubernetes NodePort range
+
+==========================================================================
+                               ALL THE BEST!
+==========================================================================
