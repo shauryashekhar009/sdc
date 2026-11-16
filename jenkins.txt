@@ -1,0 +1,108 @@
+## ===== START (PowerShell) =====
+Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+docker start jenkins
+docker ps
+## browser: http://localhost:8080  -> log in
+
+## ===== ONE-TIME SETUP (browser) =====
+## Gear icon (top-right) -> Plugins -> Available plugins -> install:
+##   Maven Integration, Copy Artifact, Build Pipeline, Deploy to container, Email Extension
+##   tick "Restart Jenkins when installation is complete"
+## Gear icon -> Tools -> Maven installations -> Add Maven
+##   Name: MAVEN-HOME   [x] Install automatically   -> Save
+## GitHub: Fork  https://github.com/jenkins-docs/simple-java-maven-app
+## GitHub: Fork  https://github.com/efsavage/hello-world-war
+
+## ===== WEEK 8 : FREESTYLE - MavenJava (browser) =====
+## New Item -> MavenJava_Build -> Freestyle project -> OK
+##   Git URL:    https://github.com/<your-username>/simple-java-maven-app.git
+##   Branch:     */master
+##   Build step: Invoke top-level Maven targets -> MAVEN-HOME -> clean
+##   Build step: Invoke top-level Maven targets -> MAVEN-HOME -> install
+##   Post-build: Archive the artifacts -> **/*
+##   Post-build: Build other projects  -> MavenJava_Test (only if stable) -> Save
+## New Item -> MavenJava_Test -> Freestyle project -> OK
+##   [x] Delete workspace before build starts
+##   Build step: Copy artifacts from another project -> MavenJava_Build -> Latest successful -> **/*
+##   Build step: Invoke top-level Maven targets -> MAVEN-HOME -> test
+##   Post-build: Archive the artifacts -> **/*  -> Save
+## Dashboard -> + -> MavenJava_Pipeline -> Build Pipeline View -> Initial job: MavenJava_Build -> OK -> Run
+
+## ===== WEEK 8 : FREESTYLE - MavenWeb + Tomcat (PowerShell) =====
+docker run -d --name tomcat -p 8085:8080 tomcat:9.0
+docker exec tomcat cp -r /usr/local/tomcat/webapps.dist/manager /usr/local/tomcat/webapps/
+docker exec tomcat sed -i 's#</tomcat-users>#<user username="deployer" password="deploy123" roles="manager-gui,manager-script"/></tomcat-users>#' /usr/local/tomcat/conf/tomcat-users.xml
+docker exec tomcat sed -i 's/allow="[^"]*"/allow=".*"/' /usr/local/tomcat/webapps/manager/META-INF/context.xml
+docker restart tomcat
+## browser: http://localhost:8085/manager/html  (deployer / deploy123)
+
+## (browser)
+## MavenWeb_Build  = same as MavenJava_Build, Git URL: https://github.com/<your-username>/hello-world-war.git
+##                   Build other projects -> MavenWeb_Test
+## MavenWeb_Test   = same as MavenJava_Test, copy artifacts from MavenWeb_Build
+##                   Post-build: Build other projects -> MavenWeb_Deploy
+## New Item -> MavenWeb_Deploy -> Freestyle project -> OK
+##   Build step: Copy artifacts from another project -> MavenWeb_Test -> Latest successful -> **/*
+##   Post-build: Deploy war/ear to a container
+##     WAR/EAR files: **/*.war
+##     Context path:  webpath
+##     Add Container: Tomcat 9.x Remote
+##     Credentials:   Add -> deployer / deploy123
+##     Tomcat URL:    http://host.docker.internal:8085/   -> Save
+## Dashboard -> + -> MavenWeb_Pipeline -> Build Pipeline View -> Initial job: MavenWeb_Build -> Run
+## browser: http://localhost:8085/webpath
+
+## ===== WEEK 9 : SCRIPTED PIPELINE (browser) =====
+## New Item -> Scripted_Pipeline -> Pipeline -> OK
+##   Description: Builds, tests and packages the Maven Java project from GitHub
+##   Triggers: [x] Poll SCM -> H/5 * * * *
+##   Pipeline -> Definition: Pipeline script -> paste below -> Save -> Build Now
+pipeline {
+  agent any
+  tools { maven 'MAVEN-HOME' }
+  stages {
+    stage('git repo & clean') {
+      steps {
+        sh 'rm -rf simple-java-maven-app'
+        sh 'git clone https://github.com/<your-username>/simple-java-maven-app.git'
+        sh 'mvn clean -f simple-java-maven-app'
+      }
+    }
+    stage('install') { steps { sh 'mvn install -f simple-java-maven-app' } }
+    stage('test')    { steps { sh 'mvn test -f simple-java-maven-app' } }
+    stage('package') { steps { sh 'mvn package -f simple-java-maven-app' } }
+  }
+}
+## Other trigger: Build periodically -> 0 18 * * *   (every day 6 PM)
+
+## ===== WEEK 11 : WEBHOOK (new PowerShell window, keep open) =====
+cd C:\ngrok
+.\ngrok.exe config add-authtoken <your_token>
+.\ngrok.exe http 8080
+## copy the https://xxxx.ngrok-free.dev URL
+## GitHub -> your simple-java-maven-app fork -> Settings -> Webhooks -> Add webhook
+##   Payload URL:  https://xxxx.ngrok-free.dev/github-webhook/
+##   Content type: application/json
+##   Events:       Just the push event -> Add webhook
+## Jenkins -> MavenJava_Build -> Configure -> Triggers -> [x] GitHub hook trigger for GITScm polling -> Save
+
+## test webhook (PowerShell)
+git clone https://github.com/<your-username>/simple-java-maven-app.git
+cd simple-java-maven-app
+Add-Content README.md "webhook test"
+git add .
+git commit -m "webhook test"
+git push
+## -> MavenJava_Build starts by itself
+
+## ===== WEEK 11 : EMAIL (browser) =====
+## Gmail: myaccount.google.com -> Security -> 2-Step Verification ON -> App passwords -> Jenkins-Demo -> copy 16 chars
+## Gear icon -> System
+##   Extended E-mail Notification: SMTP smtp.gmail.com, Port 465, Credentials (gmail + app password), [x] SSL
+##   E-mail Notification:          SMTP smtp.gmail.com, [x] SMTP Auth (gmail + app password), [x] SSL, Port 465
+##   [x] Test configuration by sending test e-mail -> your email -> Test configuration -> Save
+## MavenJava_Build -> Configure -> Post-build -> Editable Email Notification
+##   Recipient: your email   Triggers: Failure - Any, Success -> Save -> Build Now
+
+## ===== END (PowerShell) =====
+docker stop jenkins tomcat
